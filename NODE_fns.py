@@ -1,12 +1,12 @@
 import jax.numpy as np
 import jax
-from jax import grad, vmap, jit, random, jacrev#, partial
+from jax import grad, vmap, jit, random, jacrev
 from functools import partial
 from jax.experimental.ode import odeint
 from jax.scipy.optimize import minimize
 from jax.lax import scan
 
-# @jit
+@jit
 def forward_pass(H, params):
     Ws, b = params
     N_layers = len(Ws)
@@ -15,6 +15,7 @@ def forward_pass(H, params):
         H = np.tanh(H)
     Y = np.matmul(H, Ws[-1]) + b
     return Y
+
 @jit
 def forward_pass_nobias(H, Ws):
     N_layers = len(Ws)
@@ -24,12 +25,6 @@ def forward_pass_nobias(H, Ws):
         Y = np.matmul(H, Ws[-1])
     return Y
 
-@jit
-def NODE_old(y0, params):
-    f = lambda y, t: forward_pass(np.array([y]),params) # fake time argument for ODEint
-    return odeint(f, y0, np.array([0.0,1.0]))[-1] # integrate between 0 and 1 and return the results at 1
-
-#The same function as NODE_old except using Euler integration
 @jit
 def NODE(y0, params, steps = 50):
     body_func = lambda y, i: (y + forward_pass(np.array([y]), params)[0], None)
@@ -45,15 +40,16 @@ def NODE_nobias(y0, params, steps = 50):
 NODE_vmap = vmap(NODE, in_axes=(0, None), out_axes=0)
 
 @jit
-def NODE_sigma(F, params):
+def sigma(F, params):
     C = np.dot(F.T, F)
-    S = NODE_S(C, params)
+    S = S(C, params)
     return np.einsum('ij,jk,kl->il', F, S, F.T)
-NODE_sigma_vmap = vmap(NODE_sigma, in_axes=(0, None), out_axes=0)
+sigma_vmap = vmap(sigma, in_axes=(0, None), out_axes=0)
  
 @jit
-def NODE_S(C, params):
-    I1_params, I2_params, Iv_params, Iw_params, J1_params, J2_params, J3_params, J4_params, J5_params, J6_params, I_weights, theta, Psi1_bias, Psi2_bias = params
+def S(C, params):
+    I1_params, I2_params, Iv_params, Iw_params, J1_params, J2_params, J3_params, \
+            J4_params, J5_params, J6_params, I_weights, theta, Psi1_bias, Psi2_bias = params
     a = 1/(1+np.exp(-I_weights))
     v0 = np.array([ np.cos(theta), np.sin(theta), 0])
     w0 = np.array([-np.sin(theta), np.cos(theta), 0])
@@ -77,26 +73,16 @@ def NODE_S(C, params):
     J5 = a[4]*I2+(1-a[4])*Iw
     J6 = a[5]*Iv+(1-a[5])*Iw
 
-    Psi1 = NODE(I1,  I1_params)
-    Psi2 = NODE(I2,  I2_params)
-    Psiv = NODE(Iv,  Iv_params)
-    Psiw = NODE(Iw,  Iw_params)
-    Phi1 = NODE(J1,  J1_params)
-    Phi2 = NODE(J2,  J2_params)
-    Phi3 = NODE(J3,  J3_params)
-    Phi4 = NODE(J4,  J4_params)
-    Phi5 = NODE(J5,  J5_params)
-    Phi6 = NODE(J6,  J6_params)
-    
-    Psiv = np.max([Psiv, 0])
-    Psiw = np.max([Psiw, 0])
-    Phi1 = np.max([Phi1, 0])
-    Phi2 = np.max([Phi2, 0])
-    Phi3 = np.max([Phi3, 0])
-    Phi4 = np.max([Phi4, 0])
-    Phi5 = np.max([Phi5, 0])
-    Phi6 = np.max([Phi6, 0])
-    
+    ICs      = [I1,        I2,        Iv,        Iw,        J1,        J2,        J3,        J4,        J5,        J6]
+    params   = [I1_params, I2_params, Iv_params, Iw_params, J1_params, J2_params, J3_params, J4_params, J5_params, J6_params]
+    derivatives = []
+    for IC, Ii_params in zip(ICs, params):
+        Psi_i = NODE(IC, Ii_params)
+        derivatives.append(Psi_i)
+    for Psi_i in derivatives[2:]:
+        Psi_i = np.max([Psi_i, 0])
+    Psi1, Psi2, Psiv, Psiw, Phi1, Phi2, Phi3, Phi4, Phi5, Phi6 = derivatives
+
     Psi1 = Psi1 +     a[0]*Phi1 +     a[1]*Phi2 +     a[2]*Phi3 + np.exp(Psi1_bias)
     Psi2 = Psi2 + (1-a[0])*Phi1 +     a[3]*Phi4 +     a[4]*Phi5 + np.exp(Psi2_bias)
     Psiv = Psiv + (1-a[1])*Phi2 + (1-a[3])*Phi4 +     a[5]*Phi6
@@ -105,4 +91,4 @@ def NODE_S(C, params):
     p = -C[2,2]*(2*Psi1 + 2*Psi2*((I1+3) - C[2,2]) + 2*Psiv*V0[2,2] + 2*Psiw*W0[2,2])
     S = p*Cinv + 2*Psi1*np.eye(3) + 2*Psi2*((I1+3)*np.eye(3)-C) + 2*Psiv*V0 + 2*Psiw*W0
     return S
-NODE_S_vmap = vmap(NODE_S, in_axes=0, out_axes=0)
+S_vmap = vmap(S, in_axes=0, out_axes=0)

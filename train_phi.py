@@ -1,5 +1,3 @@
-#Todo: try 64 bit instead of 32 bit
-#Todo: do loss on the normalized space
 import jax.numpy as np
 import numpy as onp
 from NODE_fns import NODE as NODE
@@ -125,9 +123,9 @@ opt_state = opt_init(params)
 
 
 params, train_loss = train(loss, taui, dphidtaui, opt_state, key, nIter=200000)
-with open('saved/params.npy', 'wb') as f:
+with open('saved/phi_params.npy', 'wb') as f:
     pickle.dump(params, f)
-with open('saved/norm_w.npy', 'wb') as f:
+with open('saved/phi_norm_w.npy', 'wb') as f:
     pickle.dump([inp_mean, inp_stdv, out_mean, out_stdv], f)
 
 fig,ax = plt.subplots()

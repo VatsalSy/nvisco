@@ -28,9 +28,9 @@ K = 10000
 
 
 # N-ODE based Φ
-with open('saved/norm_w.npy', 'rb') as f:
+with open('saved/phi_norm_w.npy', 'rb') as f:
     [inp_mean, inp_stdv, out_mean, out_stdv] = pickle.load(f)
-with open('saved/params.npy', 'rb') as f:
+with open('saved/phi_params.npy', 'rb') as f:
     params = pickle.load(f)
 def dPhi(taui, params):
     NODE1_params, NODE2_params, NODE3_params, NODE4_params, NODE5_params = params
@@ -253,7 +253,7 @@ opt_state = opt_init(params)
 
 params, train_loss, val_loss = train(loss, time, lmb_x, lmb_y, sgm_x, sgm_y, opt_state, key, nIter = 3000)
 
-with open('saved/params_retrained.npy', 'wb') as f:
+with open('saved/phi_params_retrained.npy', 'wb') as f:
     pickle.dump(params, f)
 
 

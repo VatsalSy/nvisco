@@ -1,0 +1,11 @@
+#!/bin/sh -l
+#SBATCH --nodes=1 --gpus-per-node=1 --time=03:00:00 
+
+module load use.own
+module load conda-env/tf-py3.6.4
+
+cd $SLURM_SUBMIT_DIR
+
+python fit_phi_tf2.py
+
+#To submit job execute this in the command line: "sbatch phi.sub

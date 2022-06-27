@@ -110,7 +110,8 @@ def sigma_split(lm1, lm2, lm3, params): #based on isochoric/volumetric split
                   [0, 0, lm3]])
     C = np.dot(F.T, F)
     S = S_split(C, params)
-    return np.einsum('ij,jk,kl->il', F, S, F.T)
+    J = np.linalg.det(F)
+    return 1/J*np.einsum('ij,jk,kl->il', F, S, F.T)
 sigma_split_vmap = vmap(sigma_split, in_axes=(0, 0, 0, None), out_axes=0)
 
 
@@ -119,7 +120,8 @@ def S_split(C, params): #The same procedure we use in NNMAT
     alpha = 1/(1+np.exp(-alpha))
     J = np.sqrt(np.linalg.det(C))
 
-    II = (np.einsum('ik,jl->ijkl', np.eye(3), np.eye(3)))
+    I = np.eye(3)
+    II = 0.5*(np.einsum('ik,jl->ijkl', I, I) + np.einsum('il,jk->ijkl', I, I))
     Cinv = np.linalg.inv(C)
     P = II - 1/3*np.einsum('ij,kl->ijkl', Cinv, C)
     Chat = J**(-2/3)*C
@@ -130,7 +132,6 @@ def S_split(C, params): #The same procedure we use in NNMAT
     I1 = I1-3
     I2 = I2-3
     J1 = alpha*I1+(1-alpha)*I2
-
     ICs      = [I1,        I2,        J1]
     params   = NN_weights# [I1_params, I2_params, J1_params]
     derivatives = []
@@ -142,8 +143,9 @@ def S_split(C, params): #The same procedure we use in NNMAT
     Psi1 = Psi1 +     alpha*Phi1 + np.exp(Psi1_bias)
     Psi2 = Psi2 + (1-alpha)*Phi1 + np.exp(Psi2_bias)
 
-    Shat = 2*Psi1*np.eye(3) + 2*Psi2*((I1+3)*np.eye(3)-C)
+    Shat = 2*Psi1*np.eye(3) + 2*Psi2*((I1+3)*np.eye(3)-Chat)
     Siso = J**(-2/3)*np.einsum('ij,ijkl->kl', Shat, P)
+    Siso = J**(-2/3)*np.einsum('ijkl,kl->ij', P, Shat)
 
     K = 1000
     p = 2*K*(J-1)
@@ -151,6 +153,7 @@ def S_split(C, params): #The same procedure we use in NNMAT
     S = Siso + Svol
     return S
 
+#I will probably not use this function anymore.
 def sigma33(lm1, lm2, lm3, params): #The same procedure we use in NNMAT
     F = np.array([[lm1, 0, 0],
                   [0, lm2, 0],

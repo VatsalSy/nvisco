@@ -1,11 +1,10 @@
 import jax.numpy as np
 import numpy as onp
-from NODE_fns import NODE as NODE
-from jax import grad, random, jit, vmap#, partial
+from NODE_fns import NODE_nobias as NODE
+from jax import grad, random, jit, vmap
 from functools import partial
 from jax.experimental import optimizers
 import pickle
-import time
 import matplotlib.pyplot as plt
 key = random.PRNGKey(0)
 
@@ -131,7 +130,7 @@ with open('saved/phi_norm_w.npy', 'wb') as f:
 fig,ax = plt.subplots()
 ax.plot(train_loss)
 ax.set_yscale('log')
-fig.savefig('saved/training.png')
+fig.savefig('figs/training.png')
 
 
 
@@ -158,7 +157,6 @@ for i in range(3):
     ax[i].plot([mn, mx], [mn, mx], 'r')
     ax[i].plot(dphidtaui[i], dphidtaui_pr[i], 'k.')
     ax[i].set(title='$\\partial \\Phi / \\partial \\tau_{{ {s} }}$'.format(s = names[i]))
-    # ax[i].set(xlim=[mn, mx], ylim=[mn, mx])
     
 ax[0].set(xlabel='Govindjee', ylabel='Prediction')
 fig.savefig('saved/testing.png')

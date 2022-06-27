@@ -5,11 +5,11 @@ config.update('jax_disable_jit', False)
 config.update('jax_enable_x64', True)
 import jax.numpy as np
 import numpy as onp
-from NODE_fns import NODE_nobias as NODE
-from jax import grad, random, jit, jacobian, jacfwd, jacrev, vmap
+from NODE_fns import NODE_nobias as NODE, sigma33 as sigma33_NODE, sigma_split as sigma_NODE
+from jax import grad, random, jit, vmap
 from functools import partial
 import jax.example_libraries.optimizers as optimizers
-from jax.lax import while_loop, fori_loop, scan, cond
+from jax.lax import cond
 from jax.experimental.ode import odeint
 import pickle
 key = random.PRNGKey(0)
@@ -81,30 +81,36 @@ def tau_NEQ(lm1e, lm2e, lm3e):
     tau_A = devtau + 1/3*tau_NEQI #(B8)
     return tau_A
 
+def tau_NEQ_NODE(lm1, lm2, lm3):
+    J = lm1*lm2*lm3
+    sigma_NEQ = sigma_NODE(lm1, lm2, lm3, Psi_neq_params)
+    tau_NEQ = J*sigma_NEQ
+    return tau_NEQ
+
 def sigma(inputs):
     lm1, lm2, lm3, lm1e, lm2e, lm3e = inputs
     J = lm1*lm2*lm3
     Je = lm1e*lm2e*lm3e
     
-    b1 = Je**(-2/3)*lm1e**2
-    b2 = Je**(-2/3)*lm2e**2
-    b3 = Je**(-2/3)*lm3e**2
+    # b1 = Je**(-2/3)*lm1e**2
+    # b2 = Je**(-2/3)*lm2e**2
+    # b3 = Je**(-2/3)*lm3e**2
 
-    devtau1 = 0
-    devtau2 = 0
-    devtau3 = 0
-    for r in range(3):
-        e = alpha_m[r]/2
-        devtau1 = devtau1 + mu_m[r]*(2/3*b1**e - 1/3*(b2**e + b3**e)) #(B8)
-        devtau2 = devtau2 + mu_m[r]*(2/3*b2**e - 1/3*(b1**e + b3**e))
-        devtau3 = devtau3 + mu_m[r]*(2/3*b3**e - 1/3*(b1**e + b2**e))
-    devtau = np.array([devtau1, devtau2, devtau3])
+    # devtau1 = 0
+    # devtau2 = 0
+    # devtau3 = 0
+    # for r in range(3):
+    #     e = alpha_m[r]/2
+    #     devtau1 = devtau1 + mu_m[r]*(2/3*b1**e - 1/3*(b2**e + b3**e)) #(B8)
+    #     devtau2 = devtau2 + mu_m[r]*(2/3*b2**e - 1/3*(b1**e + b3**e))
+    #     devtau3 = devtau3 + mu_m[r]*(2/3*b3**e - 1/3*(b1**e + b2**e))
+    # devtau = np.array([devtau1, devtau2, devtau3])
 
-    tau_NEQI = 3*K_m/2*(Je**2-1) #(B8)
-    tau_A = devtau + 1/3*tau_NEQI #(B8)
-    tau_NEQ = np.array([[tau_A[0], 0, 0],
-                        [0, tau_A[1], 0],
-                        [0, 0, tau_A[2]]]) #Since stress and strain are coaxial in the isotropic case
+    # tau_NEQI = 3*K_m/2*(Je**2-1) #(B8)
+    # tau_A = devtau + 1/3*tau_NEQI #(B8)
+    # tau_NEQ = np.array([[tau_A[0], 0, 0],
+    #                     [0, tau_A[1], 0],
+    #                     [0, 0, tau_A[2]]]) #Since stress and strain are coaxial in the isotropic case
 
     b = np.array([[lm1**2, 0, 0],
                   [0, lm2**2, 0],
@@ -113,7 +119,9 @@ def sigma(inputs):
                      [0, lm2**(-2), 0],
                      [0, 0, lm3**(-2)]])
 
-    sigma_EQ = mu/J*(b-np.eye(3)) + 2*K*(J-1)*np.eye(3)
+    tau_NEQ = tau_NEQ_NODE(lm1e, lm2e, lm3e)
+    # sigma_EQ = mu/J*(b-np.eye(3)) + 2*K*(J-1)*np.eye(3)
+    sigma_EQ = sigma_NODE(lm1, lm2, lm3, Psi_eq_params)
     sigma = 1/Je*tau_NEQ + sigma_EQ
     # p = sigma[2,2]*lm3**2
     # sigma = sigma - p*binv
@@ -125,20 +133,22 @@ def sigma33(inputs):
     J = lm1*lm2*lm3
     Je = lm1e*lm2e*lm3e
 
-    b1 = Je**(-2/3)*lm1e**2
-    b2 = Je**(-2/3)*lm2e**2
-    b3 = Je**(-2/3)*lm3e**2
+    # b1 = Je**(-2/3)*lm1e**2
+    # b2 = Je**(-2/3)*lm2e**2
+    # b3 = Je**(-2/3)*lm3e**2
 
-    devtau3 = 0
-    for r in range(3):
-        e = alpha_m[r]/2
-        devtau3 = devtau3 + mu_m[r]*(2/3*b3**e - 1/3*(b1**e + b2**e))
+    # devtau3 = 0
+    # for r in range(3):
+    #     e = alpha_m[r]/2
+    #     devtau3 = devtau3 + mu_m[r]*(2/3*b3**e - 1/3*(b1**e + b2**e))
 
-    tau_NEQI = 3*K_m/2*(Je**2-1) #(B8)
-    tau_3 = devtau3 + 1/3*tau_NEQI #(B8)
-    tau_NEQ33 = tau_3
+    # tau_NEQI = 3*K_m/2*(Je**2-1) #(B8)
+    # tau_3 = devtau3 + 1/3*tau_NEQI #(B8)
+    # tau_NEQ33 = tau_3
 
-    sigma_EQ33 = mu/J*(lm3**2-1) + 2*K*(J-1)
+    tau_NEQ33 = tau_NEQ_NODE(lm1e, lm2e, lm3e)[2,2]
+    # sigma_EQ33 = mu/J*(lm3**2-1) + 2*K*(J-1)
+    sigma_EQ33 = sigma33_NODE(lm1, lm2, lm3, Psi_eq_params)
     sigma33 = 1/Je*tau_NEQ33 + sigma_EQ33
     return sigma33
  
@@ -152,7 +162,8 @@ def yprime(y, t, lm1dot, lm2dot, tpeak, params):
     false_fun = lambda t: np.array([   0.0,    0.0], dtype='float64')
     lm1dot, lm2dot = cond(t<tpeak, true_fun, false_fun, t)
 
-    tau_A = tau_NEQ(lm1e, lm2e, lm3e) 
+    tau_A = tau_NEQ_NODE(lm1e, lm2e, lm3e) 
+    tau_A = np.array([tau_A[0,0], tau_A[1,1], tau_A[2,2]])
     dphidtaui = dPhi(tau_A, params)
     # dphidtaui = dphidtaui_gov(tau_A)
     lm1edot = (lm1dot/lm1 - 0.5*dphidtaui[0])*lm1e
@@ -198,6 +209,8 @@ def loss(params, time, lm1, lm2, sigma1, sigma2):
     loss = np.sum((sigma_pr[:,0,0]-sigma1[:])**2) + np.sum((sigma_pr[:,1,1]-sigma2[:])**2)
     return loss/lm1.shape[0]
 loss_vmap = vmap(loss, in_axes=(None, 0, 0, 0, 0, 0), out_axes=0)
+
+@jit
 def batch_loss(params, time, lm1, lm2, sigma1, sigma2):
     loss = loss_vmap(params, time, lm1, lm2, sigma1, sigma2)
     loss = np.mean(loss)
@@ -248,10 +261,10 @@ with open('training_data/gov_data.npy','rb') as f:
 
 
 
-opt_init, opt_update, get_params = optimizers.adam(1.e-5)
+opt_init, opt_update, get_params = optimizers.adam(5.e-6)
 opt_state = opt_init(params)
 
-params, train_loss, val_loss = train(loss, time, lmb_x, lmb_y, sgm_x, sgm_y, opt_state, key, nIter = 3000)
+params, train_loss, val_loss = train(loss, time, lmb_x, lmb_y, sgm_x, sgm_y, opt_state, key, nIter = 5000, batch_size=10)
 
 with open('saved/phi_params_retrained.npy', 'wb') as f:
     pickle.dump(params, f)

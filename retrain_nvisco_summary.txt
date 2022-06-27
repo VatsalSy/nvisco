@@ -1,0 +1,99 @@
+Retrain nvisco training summary (4 hr training time):
+
+--------------------------------------------------------------
+retrain_nvisco.py
+learning rate : 5.e-6
+batch size : 10
+
+it 0, train loss = 7.739300e+03
+it 100, train loss = 1.775953e+04
+it 200, train loss = 1.517989e+04
+it 300, train loss = 9.310091e+03
+it 400, train loss = 6.836659e+03
+it 500, train loss = 1.830818e+04
+it 600, train loss = 1.181804e+04
+it 700, train loss = 5.480475e+03
+it 800, train loss = 7.040977e+03
+it 900, train loss = 6.022776e+03
+it 1000, train loss = 4.896881e+03
+it 1100, train loss = 9.119819e+03
+it 1200, train loss = 7.770492e+03
+it 1300, train loss = 5.686737e+03
+it 1400, train loss = 4.386490e+03
+it 1500, train loss = 4.470619e+03
+it 1600, train loss = 5.111202e+03
+it 1700, train loss = 5.583657e+03
+it 1800, train loss = 2.958292e+03
+it 1900, train loss = 3.337348e+03
+it 2000, train loss = 2.713317e+03
+
+--------------------------------------------------------------
+retrain_nvisco2.py
+learning rate : 1.e-5
+batch size : 30
+
+it 0, train loss = 1.137233e+04
+it 100, train loss = 1.445586e+04
+it 200, train loss = 1.097661e+04
+it 300, train loss = 8.729549e+03
+it 400, train loss = 7.098929e+03
+it 500, train loss = 6.501583e+03
+it 600, train loss = 5.748008e+03
+it 700, train loss = 4.014458e+03
+it 800, train loss = 3.537661e+03
+it 900, train loss = 3.207783e+03
+it 1000, train loss = 2.497191e+03
+it 1100, train loss = 2.051999e+03
+it 1200, train loss = 1.336184e+03
+JOB CANCELLED DUE TO TIME LIMIT 
+
+--------------------------------------------------------------
+retrain_nvisco3.py
+learning rate : 1.e-5
+batch size : 72
+
+it 0, train loss = 1.445232e+04
+it 100, train loss = 1.210567e+04
+it 200, train loss = 1.018380e+04
+it 300, train loss = 8.577550e+03
+JOB CANCELLED DUE TO TIME LIMIT 
+
+--------------------------------------------------------------
+retrain_nvisco4.py
+learning rate : 1.e-4
+batch size : 72
+
+it 0, train loss = 1.422190e+04
+it 100, train loss = 1.936855e+03
+it 200, train loss = 3.574665e+02
+JOB CANCELLED DUE TO TIME LIMIT 
+
+--------------------------------------------------------------
+retrain_nvisco5.py
+learning rate : 1.e-5
+batch size : 36
+
+it 0, train loss = 1.229447e+04
+it 100, train loss = 1.376431e+04
+it 200, train loss = 1.009763e+04
+it 300, train loss = 8.102638e+03
+JOB CANCELLED DUE TO TIME LIMIT 
+
+--------------------------------------------------------------
+retrain_nvisco6.py
+learning rate : 5.e-6
+batch size : 36
+
+it 0, train loss = 1.230378e+04
+it 100, train loss = 1.510893e+04
+it 200, train loss = 1.202201e+04
+it 300, train loss = 1.020984e+04
+
+
+
+
+
+
+
+
+

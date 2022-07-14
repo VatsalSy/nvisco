@@ -33,11 +33,16 @@ def NODE(y0, params, steps = 50):
 NODE_vmap = vmap(NODE, in_axes=(0, None), out_axes=0)
 
 @jit
-def NODE_nobias(y0, params, steps = 20):
+def NODE_nobias(y0, params, steps = 50):
     body_func = lambda y, i: (y + forward_pass_nobias(np.array([y]), params)[0], None)
     out, _ = scan(body_func, y0, None, length = steps)
     return out
-NODE_vmap = vmap(NODE, in_axes=(0, None), out_axes=0)
+# NODE_vmap = vmap(NODE, in_axes=(0, None), out_axes=0)
+
+@jit
+def NODE_old(y0, params):
+    f = lambda y, t: forward_pass(np.array([y]),params) # fake time argument for ODEint
+    return odeint(f, y0, np.array([0.0,1.0]))[-1] # integrate between 0 and 1 and return the results at 1
 
 @jit
 def sigma_biaxial(lm1, lm2, params):

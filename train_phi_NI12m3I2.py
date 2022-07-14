@@ -12,11 +12,10 @@ key = random.PRNGKey(0)
 def dphidtaui_gov(tau_i, etad = 1360, etav = 175000): 
     tau1, tau2, tau3 = tau_i
     trtau = tau1 + tau2 + tau3
-    dphidtau1 = 2*(1/3/etad + 1/9/etav)*trtau - 1/etad*(tau2+tau3)
-    dphidtau2 = 2*(1/3/etad + 1/9/etav)*trtau - 1/etad*(tau1+tau3)
-    dphidtau3 = 2*(1/3/etad + 1/9/etav)*trtau - 1/etad*(tau1+tau2)
+    dphidtau1 = 2*(1/3/etad)*trtau - 1/etad*(tau2+tau3)
+    dphidtau2 = 2*(1/3/etad)*trtau - 1/etad*(tau1+tau3)
+    dphidtau3 = 2*(1/3/etad)*trtau - 1/etad*(tau1+tau2)
     return [dphidtau1, dphidtau2, dphidtau3]
-
 taui = onp.mgrid[-200:200:10j, -200:200:10j, -200:200:10j]
 taui = taui.reshape([3,-1]).transpose()
 
@@ -29,22 +28,10 @@ for i in range(taui.shape[0]):
 tau1 = taui[:,0]
 tau2 = taui[:,1]
 tau3 = taui[:,2]
-I12     = tau1**2 + tau2**2 + tau3**2 + 2*tau1*tau2 + 2*tau1*tau3 + 2*tau2*tau3
-I12m3I2 = tau1**2 + tau2**2 + tau3**2 -   tau1*tau2 -   tau1*tau3 -   tau2*tau3
+I = tau1**2 + tau2**2 + tau3**2 - tau1*tau2 - tau1*tau3 - tau2*tau3
 
-inp_std1 = onp.std(tau1)
-inp_std2 = onp.std(tau1 + tau2)
-inp_std3 = onp.std(tau1 + tau2 + tau3)
-inp_std4 = onp.std(I12)
-inp_std5 = onp.std(I12m3I2)
-inp_stds = [inp_std1, inp_std2, inp_std3, inp_std4, inp_std5]
-
-out_std1 = 1.0
-out_std2 = 1.0
-out_std3 = 1.0
-out_std4 = 1/9/175000
-out_std5 = 1/3/1360
-out_stds = [out_std1, out_std2, out_std3, out_std4, out_std5]
+inp_std = onp.std(I)
+out_std = 1/3/1360
 
 #--------------Initialize the parameters of the model------------------#
 def init_params(layers, key):
@@ -57,41 +44,22 @@ def init_params(layers, key):
     return Ws, b
     
 layers = [1, 5, 5, 1]
-NODE1_params = init_params(layers, key)
-NODE2_params = init_params(layers, key)
-NODE3_params = init_params(layers, key)
-NODE4_params = init_params(layers, key)
-NODE5_params = init_params(layers, key)
-params = [NODE1_params, NODE2_params, NODE3_params, NODE4_params, NODE5_params]
+params = init_params(layers, key)
 
 
 #-------------A function to predict dPhidtaui given taui---------------#
 def dPhi(params, tau1, tau2, tau3):
-    NODE1_params, NODE2_params, NODE3_params, NODE4_params, NODE5_params = params
 
-    I1 = tau1
-    I2 = tau1 + tau2
-    I3 = tau1 + tau2 + tau3
-    I4 = tau1**2 + tau2**2 + tau3**2 + 2*tau1*tau2 + 2*tau1*tau3 + 2*tau2*tau3
-    I5 = tau1**2 + tau2**2 + tau3**2 -   tau1*tau2 -   tau1*tau3 -   tau2*tau3
+    # N1 = NODE(tau1, NODE1_params)
+    # N2 = NODE(tau1 + tau2, NODE2_params)
+    # N3 = NODE(tau1 + tau2 + tau3, NODE3_params)
+    # N4 = NODE(tau1**2 + tau2**2 + tau3**2 + 2*tau1*tau2 + 2*tau1*tau3 + 2*tau2*tau3, params) #I1^2
+    I = tau1**2 + tau2**2 + tau3**2 - tau1*tau2 - tau1*tau3 - tau2*tau3
+    I = I/inp_std
+    N5 = NODE(I, params) #I1^2 - 3I2
+    N5 = N5*out_std
 
-    I1 = I1/inp_std1
-    I2 = I2/inp_std2
-    I3 = I3/inp_std3
-    I4 = I4/inp_std4
-    I5 = I5/inp_std5
-
-    N1 = NODE(I1, NODE1_params)
-    N2 = NODE(I2, NODE2_params)
-    N3 = NODE(I3, NODE3_params)
-    N4 = NODE(I4, NODE4_params) #I1^2
-    N5 = NODE(I5, NODE5_params) #I1^2 - 3I2
-
-    N1 = N1*out_std1
-    N2 = N2*out_std2
-    N3 = N3*out_std3
-    N4 = N4*out_std4
-    N5 = N5*out_std5
+    N1 = N2 = N3 = N4 = 0
 
     Phi1 = N1 + N2 + N3 + 2*N4*(tau1 + tau2 + tau3) + N5*(2*tau1 - tau2 - tau3) #dphi/dtau1
     Phi2 =      N2 + N3 + 2*N4*(tau1 + tau2 + tau3) + N5*(2*tau2 - tau1 - tau3)
@@ -135,19 +103,21 @@ def train(loss, X, Y, opt_state, key, nIter = 5000, batch_size = 100):
     return get_params(opt_state), train_loss
 
 opt_init, opt_update, get_params = optimizers.adam(1.e-4)
+# # The following is temporary (for the loss defined in log space)
+# opt_init, opt_update, get_params = optimizers.adam(5.e-5)
 opt_state = opt_init(params)
 
 
 params, train_loss = train(loss, taui, dphidtaui, opt_state, key, nIter=200000)
-with open('saved/phi_params.npy', 'wb') as f:
+with open('saved/phi_params_NI12m3I2.npy', 'wb') as f:
     pickle.dump(params, f)
-with open('saved/phi_norm_w.npy', 'wb') as f:
-    pickle.dump([inp_stds, out_stds], f)
+with open('saved/phi_norm_w_NI12m3I2.npy', 'wb') as f:
+    pickle.dump([inp_std, out_std], f)
 
 fig,ax = plt.subplots()
 ax.plot(train_loss)
 ax.set_yscale('log')
-fig.savefig('figs/train_Phi.jpg')
+fig.savefig('figs/train_Phi_NI12m3I2.jpg')
 
 
 
@@ -176,7 +146,7 @@ for i in range(3):
     ax[i].set(title='$\\partial \\Phi / \\partial \\tau_{{ {s} }}$'.format(s = names[i]))
     
 ax[0].set(xlabel='Govindjee', ylabel='Prediction')
-fig.savefig('figs/test_Phi.jpg')
+fig.savefig('figs/test_Phi_NI12m3I2.jpg')
 
 print(onp.mean(dphidtaui), onp.mean(dphidtaui_pr))
 

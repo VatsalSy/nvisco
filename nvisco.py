@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 font = {'size'   : 16}
 matplotlib.rc('font', **font)
-from NODE_fns import NODE_old as NODE, sigma_split as sigma_NODE
+from NODE_fns import NODE, NODE_nobias, sigma_split as sigma_NODE
 from jax import grad, random, jit, vmap
 from functools import partial
 import jax.example_libraries.optimizers as optimizers
@@ -61,12 +61,15 @@ def dPhi_NODE(taui, Phi_params):
     I4 = I4/inp_std4
     I5 = I5/inp_std5
 
-    N1 = NODE(I1, NODE1_params)
-    N2 = NODE(I2, NODE2_params)
+    N1 = NODE_nobias(I1, NODE1_params)
+    N2 = NODE_nobias(I2, NODE2_params)
     N3 = NODE(I3, NODE3_params)
     N4 = NODE(I4, NODE4_params) #I1^2
     N5 = NODE(I5, NODE5_params) #I1^2 - 3I2
 
+    N1 = np.max(np.array([N1, 0]))
+    N2 = np.max(np.array([N2, 0]))
+    
     N1 = N1*out_std1
     N2 = N2*out_std2
     N3 = N3*out_std3

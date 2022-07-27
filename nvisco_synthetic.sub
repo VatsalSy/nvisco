@@ -1,0 +1,13 @@
+#!/bin/sh -l
+#SBATCH --nodes=1 --gpus-per-node=1 --time=15:00:00 
+
+module load anaconda
+module load cudnn/cuda-11.2_8.1
+source activate jax
+
+
+cd $SLURM_SUBMIT_DIR
+
+python -u nvisco_synthetic.py
+
+#To submit job execute this in the command line: "sbatch phi.sub

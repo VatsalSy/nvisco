@@ -13,7 +13,7 @@ def forward_pass(H, params):
     for i in range(N_layers - 1):
         H = np.matmul(H, Ws[i])
         H = np.tanh(H)
-    Y = np.matmul(H, Ws[-1]) + b
+    Y = np.matmul(H, Ws[-1]) + np.exp(b) #We want a positive bias
     return Y
 
 @jit
@@ -22,7 +22,7 @@ def forward_pass_nobias(H, Ws):
     for i in range(N_layers - 1):
         H = np.matmul(H, Ws[i])
         H = np.tanh(H)
-        Y = np.matmul(H, Ws[-1])
+    Y = np.matmul(H, Ws[-1])
     return Y
 
 @jit

@@ -82,6 +82,7 @@ class MR(): #Source: Continuummechanics
         return C10*(I1-3) + C01*(I2-3) + C20*(I1-3)**2
     
     def partials(self, lm):
+        C10, C01, C20 = self.C10, self.C01, self.C20
         lm3 = np.zeros(lm.shape[0])
         lm3[:] = 1/(lm[:,0] * lm[:,1])
         I1 = lm[:,0]**2 + lm[:,1]**2 + lm3**2
@@ -276,7 +277,7 @@ class HGO():
     
     def Psi(self, lm):
         C10, k1, k2, theta = self.C10, self.k1, self.k2, self.theta
-        _, _, I1, I4, I6, _, _ = self.kinematics(lm)
+        _, C, I1, I4, I6, _, _ = self.kinematics(lm)
         invC = np.linalg.inv(C)
         I = np.eye(3)
         Psi = C10*(I1-3) + k1/2/k2*(np.exp(k2*(I4-1)**2)-1 + np.exp(k2*(I6-1)**2)-1)

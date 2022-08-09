@@ -136,6 +136,7 @@ def S_split(C, params): #The same procedure we use in NNMAT
 
     I1 = I1-3
     I2 = I2**(3/2)-3*np.sqrt(3) #Eq. (2) in Lemma 2.2 of Hartman & Neff 2003. Because I2hat is not polyconvex.
+    # I2 = I2-3
     J1 = alpha*I1+(1-alpha)*I2
 
     [I1_params, I2_params, J1_params] = NN_weights
@@ -157,31 +158,32 @@ def S_split(C, params): #The same procedure we use in NNMAT
     S = Siso + Svol
     return S
 
-# # In isochoric deformations this becomes:
-# def isosigma(F, params):
-#     C = np.dot(F.T, F)
-#     B = np.dot(F, F.T)
-#     NN_weights, alpha, Psi1_bias, Psi2_bias = params
-#     alpha = 1/(1+np.exp(-alpha))
-#     J = 1
+# In isochoric deformations this becomes:
+def isosigma(F, params):
+    C = np.dot(F.T, F)
+    B = np.dot(F, F.T)
+    NN_weights, alpha, Psi1_bias, Psi2_bias = params
+    alpha = 1/(1+np.exp(-alpha))
+    J = 1
 
-#     I1 = np.trace(C)
-#     C2 = np.einsum('ij,jk->ik', C, C)
-#     I2 = 0.5*(I1**2 - np.trace(C2))
+    I1 = np.trace(C)
+    C2 = np.einsum('ij,jk->ik', C, C)
+    I2 = 0.5*(I1**2 - np.trace(C2))
 
-#     I1 = I1-3
-#     I2 = I2-3
-#     J1 = alpha*I1+(1-alpha)*I2
+    I1 = I1-3
+    I2 = I2-3
+    J1 = alpha*I1+(1-alpha)*I2
 
-#     [I1_params, I2_params, J1_params] = NN_weights
-#     Psi1 = NODE_nobias(I1, I1_params)
-#     Psi2 = NODE_nobias(I2, I2_params)
-#     Phi1 = NODE_nobias(J1, J1_params)
+    [I1_params, I2_params, J1_params] = NN_weights
+    Psi1 = NODE_nobias(I1, I1_params)
+    Psi2 = NODE_nobias(I2, I2_params)
+    Phi1 = NODE_nobias(J1, J1_params)
 
-#     Psi1 = Psi1 +     alpha*Phi1 + np.exp(Psi1_bias)
-#     Psi2 = Psi2 + (1-alpha)*Phi1 + np.exp(Psi2_bias)
+    Psi1 = Psi1 +     alpha*Phi1 + np.exp(Psi1_bias)
+    Psi2 = Psi2 + (1-alpha)*Phi1 + np.exp(Psi2_bias)
 
-#     S = 2*Psi1*np.eye(3) + 2*Psi2*((I1+3)*np.eye(3)-C)
-#     sigma = 1/J*np.einsum('ij,jk,kl->il', F, S, F.T)
-#     sigma = 2/J*Psi1*B + 2/J*Psi2*((I1+3)*B - B**2)
-#     return sigma
+    I1 = I1 + 3
+    S = 2*Psi1*np.eye(3) + 2*Psi2*(I1*np.eye(3)-C)
+    sigma = 1/J*np.einsum('ij,jk,kl->il', F, S, F.T)
+    sigma = 2/J*Psi1*B + 2/J*Psi2*(I1*B - B**2)
+    return sigma

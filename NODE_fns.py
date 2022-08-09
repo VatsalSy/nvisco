@@ -150,54 +150,38 @@ def S_split(C, params): #The same procedure we use in NNMAT
     Siso = J**(-2/3)*np.einsum('ij,ijkl->kl', Shat, P)
     Siso = J**(-2/3)*np.einsum('ijkl,kl->ij', P, Shat)
 
-    K = 1000
-    p = 2*K*(J-1)
-    Svol = J*p*Cinv
+    K = 10000
+    # p = 2*K*(J-1)
+    # Svol = J*p*Cinv
+    Svol = K/2*(J**2-1)*Cinv
     S = Siso + Svol
     return S
 
-#I will probably not use this function anymore.
-def sigma33(lm1, lm2, lm3, params): #The same procedure we use in NNMAT
-    F = np.array([[lm1, 0, 0],
-                  [0, lm2, 0],
-                  [0, 0, lm3]])
-    C = np.dot(F.T, F)
-    NN_weights, alpha, Psi1_bias, Psi2_bias = params
-    alpha = 1/(1+np.exp(-alpha))
-    J = np.sqrt(np.linalg.det(C))
+# # In isochoric deformations this becomes:
+# def isosigma(F, params):
+#     C = np.dot(F.T, F)
+#     B = np.dot(F, F.T)
+#     NN_weights, alpha, Psi1_bias, Psi2_bias = params
+#     alpha = 1/(1+np.exp(-alpha))
+#     J = 1
 
-    Cinv = np.linalg.inv(C)
-    II33 = np.array([[0,0,0],
-                     [0,0,0],
-                     [0,0,1]]) #The ij33 component of symmetric 4th order identity tensor
-    P33 = II33 - 1/3*Cinv*lm3**2
-    Chat = J**(-2/3)*C
-    I1 = np.trace(Chat) #These are actually I1hat, I2hat, Ivhat etc...
-    C2 = np.einsum('ij,jk->ik', Chat, Chat)
-    I2 = 0.5*(I1**2 - np.trace(C2))
+#     I1 = np.trace(C)
+#     C2 = np.einsum('ij,jk->ik', C, C)
+#     I2 = 0.5*(I1**2 - np.trace(C2))
 
-    I1 = I1-3
-    I2 = I2-3
-    J1 = alpha*I1+(1-alpha)*I2
+#     I1 = I1-3
+#     I2 = I2-3
+#     J1 = alpha*I1+(1-alpha)*I2
 
-    ICs      = [I1,        I2,        J1]
-    params   = NN_weights # [I1_params, I2_params, J1_params]
-    derivatives = []
-    for IC, Ii_params in zip(ICs, params):
-        Psi_i = NODE_nobias(IC, Ii_params)
-        derivatives.append(Psi_i)
-    Psi1, Psi2, Phi1 = derivatives
+#     [I1_params, I2_params, J1_params] = NN_weights
+#     Psi1 = NODE_nobias(I1, I1_params)
+#     Psi2 = NODE_nobias(I2, I2_params)
+#     Phi1 = NODE_nobias(J1, J1_params)
 
-    Psi1 = Psi1 +     alpha*Phi1 + np.exp(Psi1_bias)
-    Psi2 = Psi2 + (1-alpha)*Phi1 + np.exp(Psi2_bias)
+#     Psi1 = Psi1 +     alpha*Phi1 + np.exp(Psi1_bias)
+#     Psi2 = Psi2 + (1-alpha)*Phi1 + np.exp(Psi2_bias)
 
-    Shat = 2*Psi1*np.eye(3) + 2*Psi2*((I1+3)*np.eye(3)-C)
-    
-    Siso33 = J**(-2/3)*np.einsum('ij,ij', Shat, P33)
-    K = 1000
-    p = 2*K*(J-1)
-    Svol33 = J*p/lm3**2
-    S33 = Siso33 + Svol33
-    sigma33 = lm3**2*S33 #Since S[i,2] = S[2,i] = 0 for i!=2, and F is diagonal with F[2,2] = lm3
-    return sigma33
-    
+#     S = 2*Psi1*np.eye(3) + 2*Psi2*((I1+3)*np.eye(3)-C)
+#     sigma = 1/J*np.einsum('ij,jk,kl->il', F, S, F.T)
+#     sigma = 2/J*Psi1*B + 2/J*Psi2*((I1+3)*B - B**2)
+#     return sigma

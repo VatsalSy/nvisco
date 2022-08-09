@@ -120,6 +120,7 @@ for i in range(lm1.shape[0]):
 sigma_gt = np.stack(sigma_gt)
 
 # Train
+print("Training Psi_EQ")
 opt_init, opt_update, get_params = optimizers.adam(1.e-5)
 opt_state = opt_init(Psi_eq_params)
 Psi_eq_params, train_loss, val_loss = train(loss, lmb, sigma_gt, opt_state, key, nIter = 50000, batch_size = 10)
@@ -231,6 +232,7 @@ sigma_NEQ_vmap = vmap(sigma_NEQ_gov, in_axes=(0,0,0), out_axes=0)
 
 sigma_gt = sigma_NEQ_vmap(lm1, lm2, lm3)
 
+print("Training Psi_NEQ")
 opt_init, opt_update, get_params = optimizers.adam(1.e-4)
 opt_state = opt_init(Psi_neq_params)
 Psi_neq_params, train_loss, val_loss = train(loss, lmb, sigma_gt, opt_state, key, nIter = 100000, batch_size = 10)
@@ -389,6 +391,7 @@ def train(loss, X, Y, opt_state, key, nIter = 5000, batch_size = 100):
             print(to_print)
     return get_params(opt_state), train_loss
 
+print("Training Phi")
 opt_init, opt_update, get_params = optimizers.adam(1.e-4)
 opt_state = opt_init(Phi_params)
 Phi_params, train_loss = train(loss, taui, dphidtaui, opt_state, key, nIter=200000)
@@ -593,6 +596,7 @@ def train(X1, X2, X3, Y1, Y2, opt_state, key, nIter = 1000, batch_size=10):
 opt_init, opt_update, get_params = optimizers.adam(1.e-4)
 opt_state = opt_init(params)
 
-params, train_loss, val_loss = train(time, lmb_x, lmb_y, sgm_x, sgm_y, opt_state, key, nIter = 2500, batch_size=72)
+print("Retraining with stress-stretch data")
+params, train_loss, val_loss = train(time, lmb_x, lmb_y, sgm_x, sgm_y, opt_state, key, nIter = 10000, batch_size=72)
 with open('saved/params_retrained.npy', 'wb') as f:
     pickle.dump(params, f)

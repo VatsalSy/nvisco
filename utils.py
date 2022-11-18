@@ -358,11 +358,7 @@ def uniaxial_relax2(params, norm, useNODE, time, lm1_0):
     yprime = lambda t, y, args: np.array(yprime_uniaxial(y,t,0.0,0.0,params,norm,useNODE))
     term = ODETerm(yprime)
     solver = mysolver()
-    # Assumptions: 
-    # 1: The material has been loaded fast enough that lm1e=lm1.
-    # 2: lm2 = lm3
-    # 3: sigma_33 = 0
-
+    
     lm3 = lm_IC_solver(lm1_0,params[0],norm[0],useNODE)
 
     y0 = np.array([lm1_0,lm3,lm3,lm1_0,lm3,lm3])

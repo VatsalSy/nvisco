@@ -127,6 +127,7 @@ sigma_Ogden_vmap = vmap(sigma_Ogden, in_axes=(0,0,0,None), out_axes=0)
 
 def sigma_neoHook(lm1, lm2, lm3, Psi_eq_params): #Neo hookean
     K, mu = Psi_eq_params
+    K, mu = np.abs(K), np.abs(mu)
     J = lm1*lm2*lm3
     b = np.array([[lm1**2, 0, 0],
                 [0, lm2**2, 0],
@@ -192,7 +193,7 @@ def yprime_biaxial(y, t, lm1dot, lm2dot, tpeak, params, norm, useNODE):
     Apr = A/lm3
     Bpr = B/lm3
 
-    lm3edot = (Apr - 0.5*dphidtaui[2])/(1.0-Bpr)*lm3e
+    lm3edot = (Apr - 0.5*dphidtaui[2])/(1.0-Bpr*lm3e)*lm3e
     lm3dot = A + B*lm3edot
     return lm1dot, lm2dot, lm3dot, lm1edot, lm2edot, lm3edot
 
@@ -248,7 +249,7 @@ def yprime_uniaxial(y, t, lm1dot, tpeak, params, norm, useNODE):
     Apr = A/lm3
     Bpr = B/lm3
 
-    lm3edot = (Apr - 0.5*dphidtaui[2])/(1.0-Bpr)*lm3e
+    lm3edot = (Apr - 0.5*dphidtaui[2])/(1.0-Bpr*lm3e)*lm3e
     lm3dot = A + B*lm3edot
     
     lm2dot, lm2edot = lm3dot, lm3edot
@@ -332,7 +333,7 @@ def uniaxial_relax(params, norm, useNODE, time, lamb): #When the history of lamb
     solver = mysolver()
     y0 = np.array([1.0,1.0,1.0,1.0,1.0,1.0])
     saveat = SaveAt(ts=time)
-    solution = diffeqsolve(term, solver, t0=0, t1=time[-1], dt0=0.5, y0=y0, saveat=saveat)
+    solution = diffeqsolve(term, solver, t0=0, t1=time[-1], dt0=0.1, y0=y0, saveat=saveat)
     lm1, lm2, lm3, lm1e, lm2e, lm3e = solution.ys.transpose()
 
     sig = getsigma([lm1,lm2,lm3,lm1e,lm2e,lm3e], params, norm, useNODE)
@@ -358,7 +359,7 @@ def uniaxial_relax2(params, norm, useNODE, time, lm1_0):
     yprime = lambda t, y, args: np.array(yprime_uniaxial(y,t,0.0,0.0,params,norm,useNODE))
     term = ODETerm(yprime)
     solver = mysolver()
-    
+
     lm3 = lm_IC_solver(lm1_0,params[0],norm[0],useNODE)
 
     y0 = np.array([lm1_0,lm3,lm3,lm1_0,lm3,lm3])

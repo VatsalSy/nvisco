@@ -16,7 +16,8 @@ from functools import partial
 import jax.example_libraries.optimizers as optimizers
 from jax.lax import cond, scan
 from jax.experimental.ode import odeint
-from diffrax import diffeqsolve, ODETerm, SaveAt, Heun as mysolver
+from diffrax import diffeqsolve, ODETerm, SaveAt#, Heun as mysolver
+from diffrax import Dopri5 as mysolver
 import pickle
 key = random.PRNGKey(0)
 
@@ -333,7 +334,7 @@ def uniaxial_relax(params, norm, useNODE, time, lamb): #When the history of lamb
     solver = mysolver()
     y0 = np.array([1.0,1.0,1.0,1.0,1.0,1.0])
     saveat = SaveAt(ts=time)
-    solution = diffeqsolve(term, solver, t0=0, t1=time[-1], dt0=0.1, y0=y0, saveat=saveat)
+    solution = diffeqsolve(term, solver, t0=0, t1=time[-1], dt0=0.01, y0=y0, saveat=saveat)
     lm1, lm2, lm3, lm1e, lm2e, lm3e = solution.ys.transpose()
 
     sig = getsigma([lm1,lm2,lm3,lm1e,lm2e,lm3e], params, norm, useNODE)
@@ -364,7 +365,22 @@ def uniaxial_relax2(params, norm, useNODE, time, lm1_0):
 
     y0 = np.array([lm1_0,lm3,lm3,lm1_0,lm3,lm3])
     saveat = SaveAt(ts=time)
-    solution = diffeqsolve(term, solver, t0=0, t1=time[-1], dt0=0.5, y0=y0, saveat=saveat)
+    solution = diffeqsolve(term, solver, t0=0, t1=time[-1], dt0=0.1, y0=y0, saveat=saveat)
+    lm1, lm2, lm3, lm1e, lm2e, lm3e = solution.ys.transpose()
+
+    sig = getsigma([lm1,lm2,lm3,lm1e,lm2e,lm3e], params, norm, useNODE)
+    return sig, lm1, lm2, lm3, lm1e, lm2e, lm3e
+
+@partial(jit, static_argnums=(1,2,6))
+def uniaxial_monotone(params, norm, useNODE, time, lm1dot, tpeak, dt0): 
+    # Diffrax integrator
+    yprime = lambda t, y, args: np.array(yprime_uniaxial(y,t,lm1dot,tpeak,params,norm,useNODE))
+    term = ODETerm(yprime)
+    solver = mysolver()
+
+    y0 = np.array([1.0,1.0,1.0,1.0,1.0,1.0])
+    saveat = SaveAt(ts=time)
+    solution = diffeqsolve(term, solver, t0=0, t1=time[-1], dt0=dt0, y0=y0, saveat=saveat)
     lm1, lm2, lm3, lm1e, lm2e, lm3e = solution.ys.transpose()
 
     sig = getsigma([lm1,lm2,lm3,lm1e,lm2e,lm3e], params, norm, useNODE)

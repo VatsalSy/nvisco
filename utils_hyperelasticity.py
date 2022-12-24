@@ -121,7 +121,8 @@ sigma_split_vmap = vmap(sigma_split, in_axes=(0, 0, 0, None), out_axes=0)
 
 
 def S_split(C, params): #The same procedure we use in NNMAT
-    NN_weights, alpha, Psi1_bias, Psi2_bias = params
+    NN_weights, alpha, Psi1_bias, Psi2_bias, K = params
+    K = np.abs(K)*10000
     alpha = 1/(1+np.exp(-alpha))
     J = np.sqrt(np.linalg.det(C))
 
@@ -151,7 +152,6 @@ def S_split(C, params): #The same procedure we use in NNMAT
     Siso = J**(-2/3)*np.einsum('ij,ijkl->kl', Shat, P)
     Siso = J**(-2/3)*np.einsum('ijkl,kl->ij', P, Shat)
 
-    K = 10000
     # p = 2*K*(J-1)
     # Svol = J*p*Cinv
     Svol = K/2*(J**2-1)*Cinv

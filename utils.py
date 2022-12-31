@@ -43,16 +43,15 @@ def init_params_nobias(layers, key):
         Ws.append(random.normal(subkey, (layers[i], layers[i + 1]))*std_glorot)
     return Ws
 
-def dPhi_gov(tau_i, etad, etav): 
+def dPhi_RG(tau_i, etad, etav): 
     etad = np.exp(etad)
     etav = np.exp(etav)
     tau1, tau2, tau3 = tau_i
-    trtau = tau1 + tau2 + tau3
-    dphidtau1 = 2*(1/3/etad + 1/9/etav)*trtau - 1/etad*(tau2+tau3)
-    dphidtau2 = 2*(1/3/etad + 1/9/etav)*trtau - 1/etad*(tau1+tau3)
-    dphidtau3 = 2*(1/3/etad + 1/9/etav)*trtau - 1/etad*(tau1+tau2)
+    dphidtau1 = 2*(1/9/etav)*(tau1 + tau2 + tau3) + (1/3/etad)*(2*tau1 - tau2 - tau3)
+    dphidtau2 = 2*(1/9/etav)*(tau1 + tau2 + tau3) + (1/3/etad)*(2*tau2 - tau1 - tau3)
+    dphidtau3 = 2*(1/9/etav)*(tau1 + tau2 + tau3) + (1/3/etad)*(2*tau3 - tau1 - tau2)
     return [dphidtau1, dphidtau2, dphidtau3]
-dPhi_gov_vmap = vmap(dPhi_gov, in_axes=(0, None, None), out_axes=(0))
+dPhi_RG_vmap = vmap(dPhi_RG, in_axes=(0, None, None), out_axes=(0))
 
 # Neural ODE based dPhi/dtaui
 def dPhi_NODE(taui, Phi_params, Phi_norm):
@@ -64,26 +63,25 @@ def dPhi_NODE(taui, Phi_params, Phi_norm):
     tau2 = taui[1]
     tau3 = taui[2]
 
-    I3 = tau1 + tau2 + tau3
-    I4 = tau1**2 + tau2**2 + tau3**2 + 2*tau1*tau2 + 2*tau1*tau3 + 2*tau2*tau3
-    I5 = tau1**2 + tau2**2 + tau3**2 -   tau1*tau2 -   tau1*tau3 -   tau2*tau3
+    I1 = tau1 + tau2 + tau3
+    I12 = tau1**2 + tau2**2 + tau3**2 + 2*tau1*tau2 + 2*tau1*tau3 + 2*tau2*tau3
+    I12m3I2 = tau1**2 + tau2**2 + tau3**2 -   tau1*tau2 -   tau1*tau3 -   tau2*tau3
 
-    I3 = I3/inp_std3
-    I4 = I4/inp_std4
-    I5 = I5/inp_std5
+    I1 = I1/inp_std3
+    I12 = I12/inp_std4
+    I12m3I2 = I12m3I2/inp_std5
 
-    N3 = NODE(I3, NODE3_params)
-    N4 = NODE(I4, NODE4_params) #I1^2
-    N5 = NODE(I5, NODE5_params) #I1^2 - 3I2
+    N3 = NODE(I1, NODE3_params)
+    N4 = NODE(I12, NODE4_params) #I1^2
+    N5 = NODE(I12m3I2, NODE5_params) #I1^2 - 3I2
 
-    N1 = N2 = 0
     N3 = N3*out_std3
     N4 = N4*out_std4
     N5 = N5*out_std5
 
-    Phi1 = N1 + N2 + N3 + 2*N4*(tau1 + tau2 + tau3) + N5*(2*tau1 - tau2 - tau3) #dphi/dtau1
-    Phi2 =      N2 + N3 + 2*N4*(tau1 + tau2 + tau3) + N5*(2*tau2 - tau1 - tau3)
-    Phi3 =           N3 + 2*N4*(tau1 + tau2 + tau3) + N5*(2*tau3 - tau1 - tau2)
+    Phi1 = N3 + 2*N4*(tau1 + tau2 + tau3) + N5*(2*tau1 - tau2 - tau3) #dphi/dtau1
+    Phi2 = N3 + 2*N4*(tau1 + tau2 + tau3) + N5*(2*tau2 - tau1 - tau3)
+    Phi3 = N3 + 2*N4*(tau1 + tau2 + tau3) + N5*(2*tau3 - tau1 - tau2)
 
     return [Phi1, Phi2, Phi3]
 dPhi_vmap = vmap(dPhi_NODE, in_axes=(0, None, None), out_axes = (0))
@@ -155,10 +153,8 @@ def sigma(inputs, params, norm, useNODE):
         sigma_NEQ = sigma_NODE(lm1e, lm2e, lm3e, Psi_neq_params)
     else: # use Govindjee
         gov_Psi_eq_params, gov_Psi_neq_params, gov_Phi_params = params
-        # sigma_NEQ = sigma_Ogden(lm1e, lm2e, lm3e, gov_Psi_neq_params)
         sigma_NEQ = sigma_neoHook(lm1e, lm2e, lm3e, gov_Psi_neq_params)
         sigma_EQ = sigma_neoHook(lm1, lm2, lm3, gov_Psi_eq_params)
-        # sigma_EQ = sigma_Ogden(lm1, lm2, lm3, gov_Psi_eq_params)
         
     sigma = sigma_NEQ + sigma_EQ
     return sigma
@@ -181,9 +177,8 @@ def yprime_biaxial(y, t, lm1dot, lm2dot, tpeak, params, norm, useNODE):
     else: # use Govindjee
         gov_Psi_eq_params, gov_Psi_neq_params, gov_Phi_params = params
         eta_D, eta_V = gov_Phi_params
-        # tau_A = tau_Ogden(lm1e, lm2e, lm3e, gov_Psi_neq_params) 
         tau_A = tau_neoHook(lm1e, lm2e, lm3e, gov_Psi_neq_params) 
-        dphidtaui = dPhi_gov(tau_A, eta_D, eta_V)
+        dphidtaui = dPhi_RG(tau_A, eta_D, eta_V)
 
     lm1edot = (lm1dot/lm1 - 0.5*dphidtaui[0])*lm1e
     lm2edot = (lm2dot/lm2 - 0.5*dphidtaui[1])*lm2e
@@ -215,7 +210,7 @@ def yprime_triaxial(y, t, lm1dot, tpeak, params, norm, useNODE):
         gov_Psi_eq_params, gov_Psi_neq_params, gov_Phi_params = params
         eta_D, eta_V = gov_Phi_params
         tau_A = tau_Ogden(lm1e, lm2e, lm3e, gov_Psi_neq_params) 
-        dphidtaui = dPhi_gov(tau_A, eta_D, eta_V)
+        dphidtaui = dPhi_RG(tau_A, eta_D, eta_V)
 
     lm1edot = (lm1dot/lm1 - 0.5*dphidtaui[0])*lm1e
     lm2edot = np.array(-0.5*dphidtaui[1]*lm2e)
@@ -241,7 +236,7 @@ def yprime_uniaxial(y, t, lm1dot, tpeak, params, norm, useNODE):
         gov_Psi_eq_params, gov_Psi_neq_params, gov_Phi_params = params
         eta_D, eta_V = gov_Phi_params
         tau_A = tau_neoHook(lm1e, lm2e, lm3e, gov_Psi_neq_params) 
-        dphidtaui = dPhi_gov(tau_A, eta_D, eta_V)
+        dphidtaui = dPhi_RG(tau_A, eta_D, eta_V)
 
     lm1edot = (lm1dot/lm1 - 0.5*dphidtaui[0])*lm1e
     d = dsigma33([lm1,lm2,lm3,lm1e,lm2e,lm3e], params, norm, useNODE)
@@ -258,7 +253,7 @@ def yprime_uniaxial(y, t, lm1dot, tpeak, params, norm, useNODE):
     return lm1dot, lm2dot, lm3dot, lm1edot, lm2edot, lm3edot
 
 @partial(jit, static_argnums=(1,2,))
-def biaxial_relax(params, norm, useNODE, time, lm1, lm2):
+def biaxial_relax(params, norm, useNODE, time, lm1, lm2, dt0=0.5):
     ipeak1 = np.argmax(np.abs(np.around(lm1, 3)-1.0)) #around(lm1, 3) evenly rounds lm1 to 3 decimals
     ipeak2 = np.argmax(np.abs(np.around(lm2, 3)-1.0))
     ipeak = np.max(np.array([ipeak1,ipeak2]))
@@ -275,7 +270,7 @@ def biaxial_relax(params, norm, useNODE, time, lm1, lm2):
     solver = mysolver()
     y0 = np.array([1.0,1.0,1.0,1.0,1.0,1.0])
     saveat = SaveAt(ts=time)
-    solution = diffeqsolve(term, solver, t0=0, t1=time[-1], dt0=0.5, y0=y0, saveat=saveat)
+    solution = diffeqsolve(term, solver, t0=0, t1=time[-1], dt0=dt0, y0=y0, saveat=saveat)
     lm1, lm2, lm3, lm1e, lm2e, lm3e = solution.ys.transpose()
 
     # Scipy integrator

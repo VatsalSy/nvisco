@@ -317,7 +317,7 @@ def triaxial_relax(params, norm, useNODE, time, lamb):
     return sig, lm1, lm2, lm3, lm1e, lm2e, lm3e
 
 @partial(jit, static_argnums=(1,2,))
-def uniaxial_relax(params, norm, useNODE, time, lamb, dt0=0.01): #When the history of lamb before upto peak is available
+def uniaxial_relax(params, norm, useNODE, time, lamb, dt0=0.01): #When the history of lamb upto peak is available
     ipeak = np.argmax(np.abs(np.around(lamb, 3)-1.0)) #around(lm1, 3) evenly rounds lm1 to 3 decimals
     tpeak = time[ipeak]
     lambpeak = lamb[ipeak]
@@ -351,7 +351,7 @@ def lm_IC_solver(lm1, params, norm, useNODE): #Neo hookean
     return lm3
 
 @partial(jit, static_argnums=(1,2,))
-def uniaxial_relax2(params, norm, useNODE, time, lm1_0): 
+def uniaxial_relax2(params, norm, useNODE, time, lm1_0): #Use for data like brain data where the part of the data before the peak is not available.
     # Diffrax integrator
     yprime = lambda t, y, args: np.array(yprime_uniaxial(y,t,0.0,0.0,params,norm,useNODE))
     term = ODETerm(yprime)
@@ -368,7 +368,7 @@ def uniaxial_relax2(params, norm, useNODE, time, lm1_0):
     return sig, lm1, lm2, lm3, lm1e, lm2e, lm3e
 
 @partial(jit, static_argnums=(1,2,))
-def uniaxial_monotone(params, norm, useNODE, time, lm1dot, tpeak, dt0): 
+def uniaxial_monotone(params, norm, useNODE, time, lm1dot, tpeak, dt0): # Unlike the relaxation functions, this one does not have a peak.
     # Diffrax integrator
     yprime = lambda t, y, args: np.array(yprime_uniaxial(y,t,lm1dot,tpeak,params,norm,useNODE))
     term = ODETerm(yprime)
@@ -379,6 +379,40 @@ def uniaxial_monotone(params, norm, useNODE, time, lm1dot, tpeak, dt0):
     solution = diffeqsolve(term, solver, t0=0, t1=time[-1], dt0=dt0, y0=y0, saveat=saveat)
     lm1, lm2, lm3, lm1e, lm2e, lm3e = solution.ys.transpose()
 
+    sig = getsigma([lm1,lm2,lm3,lm1e,lm2e,lm3e], params, norm, useNODE)
+    return sig, lm1, lm2, lm3, lm1e, lm2e, lm3e
+
+@partial(jit, static_argnums=(1,2,))
+def uniaxial_cyclic(params, norm, useNODE, time_load, time_unload, lm1peak, dt0): # Just like uniaxial_monotone, except this one does unloading in addition to loading.
+    # loading
+    tpeak = time_load[-1]
+    lm1dot = (lm1peak-1.0)/tpeak
+    yprime = lambda t, y, args: np.array(yprime_uniaxial(y,t,lm1dot,tpeak,params,norm,useNODE))
+    term = ODETerm(yprime)
+    solver = mysolver()
+
+    y0 = np.array([1.0,1.0,1.0,1.0,1.0,1.0])
+    saveat = SaveAt(ts=time_load)
+    solution = diffeqsolve(term, solver, t0=0, t1=tpeak, dt0=dt0, y0=y0, saveat=saveat)
+    lm1_1, lm2_1, lm3_1, lm1e_1, lm2e_1, lm3e_1 = solution.ys.transpose()
+
+    # unloading
+    yprime = lambda t, y, args: np.array(yprime_uniaxial(y,t,-lm1dot,time_unload[-1],params,norm,useNODE))
+    term = ODETerm(yprime)
+    solver = mysolver()
+
+    y0 = solution.ys[-1]
+    saveat = SaveAt(ts=time_unload)
+    solution = diffeqsolve(term, solver, t0=tpeak, t1=time_unload[-1], dt0=dt0, y0=y0, saveat=saveat)
+    lm1_2, lm2_2, lm3_2, lm1e_2, lm2e_2, lm3e_2 = solution.ys.transpose()
+
+    lm1 = np.hstack([lm1_1, lm1_2])
+    lm2 = np.hstack([lm2_1, lm2_2])
+    lm3 = np.hstack([lm3_1, lm3_2])
+    lm1e = np.hstack([lm1e_1, lm1e_2])
+    lm2e = np.hstack([lm2e_1, lm2e_2])
+    lm3e = np.hstack([lm3e_1, lm3e_2])
+    
     sig = getsigma([lm1,lm2,lm3,lm1e,lm2e,lm3e], params, norm, useNODE)
     return sig, lm1, lm2, lm3, lm1e, lm2e, lm3e
 
